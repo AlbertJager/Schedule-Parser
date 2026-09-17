@@ -1,14 +1,14 @@
-# ИТОГОВАЯ ФУНКЦИЯ get_schedule
 from collections.abc import Generator
 from requests import get
 from bs4 import BeautifulSoup, Tag
 from re import compile
 from fake_useragent import UserAgent
 from datetime import datetime, timezone, timedelta
+import json
 
 
 def get_souped_page(group: str) -> BeautifulSoup | None:
-
+    '''Отдает страницу в виде экземпляра BS'''
     headers = {"User-Agent": UserAgent().random, "Accept-Language": "ru-RU,ru;q=0.9"}  # генерирует случайную строку User-Agent    
 
     response = get(f"https://s.kubsau.ru/?type_schedule=1&val={group}", headers=headers).text
@@ -17,75 +17,125 @@ def get_souped_page(group: str) -> BeautifulSoup | None:
 
     group_exists = soup.find('h2', class_='h2-responsive')
 
-    if group_exists:
-        return soup
+    if not group_exists:
+        raise ValueError("Такой группы нет.")    
+    return soup
 
 
 def get_days(week: Tag) -> Generator[Tag, None, None]:
-    '''Поочередно выдает блоки с днями недели(пн-сб)'''
+    '''Поочередно выдает блоки дней недели(пн-сб)'''
     yield from week.find_all("div", class_= compile("^card-block day-"))
 
 
 def get_page_of_week(souped_page: BeautifulSoup, week: str) -> Tag | None:
     '''Возвращает блок html-кода с конкретной неделей, принимает week(first, second)'''
-
     page = souped_page.find("div", class_=compile(f"schedule-{week}-week"))  # страница конкретной недели
     return page
 
 
 def get_schedule_of_week(souped_page, week: str):
-    '''Возвращает расписание конкретной недели в виде словаря с днями'''
+    '''Возвращает расписание конкретной недели в виде словаря с днями'''    
     page_of_week = get_page_of_week(souped_page, week)
-
-    for page_of_day in get_days(page_of_week):  # перебор страниц дней
-        pass
-
-    # словарь куда будут передаваться дни
+    if not page_of_week:
+        raise ValueError(f"Неделя не найдена. Выберите из (first/second). Вы ввели: {week}")  # todo: добавить all, то есть все недели
+    
     schedule_of_week = {
-
+        "week": week,
+        "schedules": {
+            # здесь будут словари с расписаниями дней 
+        }
     }
-    return page_of_week
 
+    for page_of_day in get_days(page_of_week):  # перебор веб-страниц дней
+        schedule_of_day = extract_schedule_from_day(page_of_day)
+        
+        day = schedule_of_day["day"]  # сделать ключ в виде даты yyyy-mm-dd
+        schedule_of_week["schedules"][day] = schedule_of_day
+    
+    with open(f"schedule_of_week_{week}.json", "w", encoding="utf-8") as f:
+        json.dump(schedule_of_week, f, ensure_ascii=False, indent=4)
+        
+    return schedule_of_week
+    
     
 def get_schedule_of_day(souped_page: BeautifulSoup, day: str) -> dict:
-    '''Возвращает расписание сегодняшнего или завтрашнего дня в виде словаря. day in (today, tomorrow). Нужно найти блок с форматом даты в виде day-2026-09-19'''
-
+    ''' Вызывается для поиска расписания сегодняшнего или завтрашнего дня.
+    Параметр day - строка даты в формате in (today, tomorrow). 
+    
+    Находит блок(div) с форматом даты в виде yyyy-mm-dd'''
+    
+    day = day.lower().strip()
+    if day == "today":
+        day = (datetime.now(timezone.utc)).strftime("%Y-%m-%d")  # перевод даты в строку в формате yyyy-mm-dd
+    elif day == "tomorrow":
+        day = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")  # перевод даты в строку в формате yyyy-mm-dd
+    else:
+        raise ValueError(f"Выберите today/tomorrow. Сейчас: {day}")
+    
     page_of_day = souped_page.find("div", class_= compile(f"^card-block day-{day}"))
     if not page_of_day:
         return "Такого дня нет"
 
-    extract_schedule_from_day(page_of_day)
-    
+    schedule_of_day = extract_schedule_from_day(page_of_day)  # пока просто
+    with open(f"schedule_of_day_{day}.json", "w", encoding="utf-8") as f:
+            json.dump(schedule_of_day, f, ensure_ascii=False, indent=4)
 
-def extract_schedule_from_day(page_of_day: Tag):
+
+def extract_schedule_from_day(page_of_day: Tag) -> dict:
+    '''Возвращает расписание дня в виде словаря'''    
+    
+    # словарь данных для каждого предмета
     schedule_of_day = {
-       "day": page_of_day.find("h4", class_= "card-title"),
-        "schedule": {  # тут заполнить табличную часть с каждым предметом
-            
+       "day": page_of_day.find("h4", class_= "card-title").text.strip().split("\r\n")[0],
+        "schedule": {  
+            # здесь ключ это number - порядковый номер пары(начиная с 1)
         }
     }
 
-    for subject in page_of_day.find("table", class_= "table").find_all("tr"):  # перебор каждого занятия
-        discipline = subject.find("td", class_="diss").text.strip()
+    # перебор каждого занятия
+    for number, subject in enumerate(page_of_day.find("table", class_= "table").find_all("tr"), start=1):  
+        discipline_tag = subject.find("td", class_="diss")  # в нем содержится дисциплина и преподаватель
+        
+        is_lection = True if subject.find("td", class_="lection yes") else False
+        if is_lection:
+            discipline = discipline_tag.find("strong").text.strip()
+        else:
+            discipline = discipline_tag.find(string=True).text.strip()
+        
         if not discipline:  # пропуск пустых занятий
             continue
-
+        
+        entry = schedule_of_day["schedule"][number] = {}  # хранилище данных предмета    
+        teacher = discipline_tag.find("span", class_="diss-info").text.strip()
         time_start, time_end = subject.find("td", class_="time").text.strip().split() 
-        lection_yes = True if subject.find("div", class_="lection yes") else False
-        print(discipline, time_start, time_end, lection_yes)
+        classroom = subject.find("a", class_="room-link").text.strip()
         
+        # заполнение хранилища предмета
+        if not classroom:
+            link = subject.find("a", class_="webex")["href"]
+            entry["classroom"] = link
+        else:
+            entry["classroom"] = classroom
         
+        entry["discipline"] = discipline    
+        entry["teacher"] = teacher
+        entry["is_lection"] = is_lection
+        entry["time_start"] = time_start    
+        entry["time_end"] = time_end    
+        
+    return schedule_of_day
         
 
-def main(group: str):
+def main(group: str) -> None:
+    '''Пока для теста функций получения расписания дня и недели'''
     souped_page = get_souped_page(group)
     if not souped_page:
         print('Такой группы нет')
         return
-    # day = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
-    day = (datetime.now(timezone.utc)).strftime("%Y-%m-%d")
 
-    get_schedule_of_day(souped_page, day)
+    # get_schedule_of_week(souped_page, "first")
+    get_schedule_of_day(souped_page, "today")
 
-    # print(get_schedule_of_week(souped_page, 'second'))
-main('ИТ2304')
+
+if __name__ == "__main__":
+    main('ЮФО2201')
