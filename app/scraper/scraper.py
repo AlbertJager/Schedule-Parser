@@ -33,7 +33,7 @@ def get_page_of_week(souped_page: BeautifulSoup, week: str) -> Tag | None:
     return page
 
 
-def get_schedule_of_week(souped_page, week: str):
+def get_schedule_of_week(souped_page, week: str) -> dict:
     '''Возвращает расписание конкретной недели в виде словаря с днями'''    
     page_of_week = get_page_of_week(souped_page, week)
     
@@ -104,7 +104,7 @@ def extract_schedule_from_day(page_of_day: Tag) -> dict:
     return schedule_of_day
         
 
-def schedule_of_weeks(souped_page: Tag):
+def schedule_of_weeks(souped_page: Tag) -> list[dict]:
     '''Создает расписания сразу для двух недель'''
     weeks = []
     
