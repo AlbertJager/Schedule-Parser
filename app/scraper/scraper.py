@@ -111,23 +111,22 @@ def schedule_of_weeks(souped_page: Tag):
     for week in ("first", "second"):
         weeks.append(get_schedule_of_week(souped_page, week))
     
-    with open(f"schedule_of_weeks.json", "w", encoding="utf-8") as f:
-        json.dump(weeks, f, ensure_ascii=False, indent=4)
+    return weeks
             
 
-def main(group: str) -> None:
-    '''Пока для теста функций получения расписания дня и недели'''
-    souped_page = get_souped_page(group)
-    if not souped_page:
-        print('Такой группы нет')
-        return
+def get_schedule(group: str) -> list[dict]:
+    '''Основная функция для получения расписания на 2 недели для конкретной группы
+    Получает группу в виде 'ИТ2304', парсит сайт КубГАУ, 
+    формирует список словарей с двумя неделями и возвращает его
+    '''
     
-    # get_schedule_of_week(souped_page, "second")
-    schedule_of_weeks(souped_page)
+    souped_page = get_souped_page(group)  # Получаем страницу в виде экземпляра beautiful soup
+    
+    return schedule_of_weeks(souped_page)  # Получаем список словарей(2 недели)
 
     
 if __name__ == "__main__":
-    main('ЮФО2201')
+    print(get_schedule('ЮФО2201'))
     
     
     
