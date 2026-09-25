@@ -49,9 +49,6 @@ def get_schedule_of_week(souped_page, week: str) -> dict:
         day = schedule_of_day["day"]  # дата в формате yyyy-mm-dd
         schedule_of_week["schedules"][day] = schedule_of_day
         
-    with open(f"schedule_of_weeks.json", "w", encoding="utf-8") as f:
-        json.dump(schedule_of_week, f, ensure_ascii=False, indent=4)
-        
     return schedule_of_week
 
 
@@ -125,7 +122,10 @@ def get_schedule(group: str) -> list[dict]:
 
     
 if __name__ == "__main__":
-    print(get_schedule('ЮФО2201'))
+    group = input("Введите группу. Например: ИТ2304\n> ")
+    schedule = get_schedule(group)
+    with open(f"schedule_{group}.json", "w", encoding="utf-8") as f:
+        json.dump(schedule, f, ensure_ascii=False, indent=4)
     
     
     
