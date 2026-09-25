@@ -3,7 +3,6 @@ from requests import get
 from bs4 import BeautifulSoup, Tag
 from re import compile
 from fake_useragent import UserAgent
-from datetime import datetime, timezone, timedelta
 import json
 
 
