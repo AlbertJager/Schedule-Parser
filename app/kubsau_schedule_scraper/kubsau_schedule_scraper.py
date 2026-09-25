@@ -26,13 +26,14 @@ def get_days(week: Tag) -> Generator[Tag, None, None]:
     yield from week.find_all("div", class_= compile("^card-block day-"))
 
 
-def get_page_of_week(souped_page: BeautifulSoup, week: str) -> Tag | None:
+def get_page_of_week(souped_page: BeautifulSoup, week: int) -> Tag | None:
     '''Возвращает блок html-кода с конкретной неделей, принимает week(first, second)'''
+    week = 'first' if week == 1 else 'second'
     page = souped_page.find("div", class_=compile(f"schedule-{week}-week"))  # страница конкретной недели
     return page
 
 
-def get_schedule_of_week(souped_page, week: str) -> dict:
+def get_schedule_of_week(souped_page, week: int) -> dict:
     '''Возвращает расписание конкретной недели в виде словаря с днями'''    
     page_of_week = get_page_of_week(souped_page, week)
     
@@ -104,7 +105,7 @@ def schedule_of_weeks(souped_page: Tag) -> list[dict]:
     '''Создает расписания сразу для двух недель'''
     weeks = []
     
-    for week in ("first", "second"):
+    for week in range(1, 3):
         weeks.append(get_schedule_of_week(souped_page, week))
     
     return weeks
@@ -122,32 +123,8 @@ def get_schedule(group: str) -> list[dict]:
 
     
 if __name__ == "__main__":
+    '''Мои тесты'''
     group = input("Введите группу. Например: ИТ2304\n> ")
     schedule = get_schedule(group)
     with open(f"schedule_{group}.json", "w", encoding="utf-8") as f:
         json.dump(schedule, f, ensure_ascii=False, indent=4)
-    
-    
-    
-    
-# def get_schedule_of_day(souped_page: BeautifulSoup, day: str) -> dict:
-#     ''' Вызывается для поиска расписания сегодняшнего или завтрашнего дня.
-#     Параметр day - строка даты в формате in (today, tomorrow). 
-    
-#     Находит блок(div) с форматом даты в виде yyyy-mm-dd'''
-    
-#     day = day.lower().strip()
-#     if day == "today":
-#         day = (datetime.now(timezone.utc)).strftime("%Y-%m-%d")  # перевод даты в строку в формате yyyy-mm-dd
-#     elif day == "tomorrow":
-#         day = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")  # перевод даты в строку в формате yyyy-mm-dd
-#     else:
-#         raise ValueError(f"Выберите today/tomorrow. Сейчас: {day}")
-    
-#     page_of_day = souped_page.find("div", class_= compile(f"^card-block day-{day}"))
-#     if not page_of_day:
-#         return "Такого дня нет"
-
-#     schedule_of_day = extract_schedule_from_day(page_of_day)  # пока просто
-#     with open(f"schedule_of_day_{day}.json", "w", encoding="utf-8") as f:
-#             json.dump(schedule_of_day, f, ensure_ascii=False, indent=4)
