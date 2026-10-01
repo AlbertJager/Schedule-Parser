@@ -117,7 +117,7 @@ def get_schedule(group: str) -> list[dict]:
     формирует список словарей с двумя неделями и возвращает его
     '''
     
-    souped_page = get_souped_page(group)  # Получаем страницу в виде экземпляра beautiful soup
+    souped_page = get_souped_page(group.lower().strip())  # Получаем страницу в виде экземпляра beautiful soup
     
     return schedule_of_weeks(souped_page)  # Получаем список словарей(2 недели)
 
