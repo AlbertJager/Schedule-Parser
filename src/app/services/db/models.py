@@ -1,13 +1,23 @@
 from datetime import date, time
 from uuid import UUID, uuid7
 
-from sqlalchemy import Date, SmallInteger, String, Time, Uuid, Boolean
+from sqlalchemy import Date, SmallInteger, String, Time, Uuid, Boolean, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.app.database import Base
+from src.app.services.db.database import Base
 
 class Schedule(Base):
     __tablename__ = "schedule"
+    
+    __table_args__ = (  # комбинация group_name + date + lesson_number должна быть уникальной
+        UniqueConstraint(
+            "group_name",
+            "date",
+            "lesson_number",
+            name="uq_schedule_group_date_lesson",
+        ),
+    )
+    
     
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid7)
     group_name: Mapped[str] = mapped_column(String)

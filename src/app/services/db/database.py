@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from src.app.config import settings
+from src.app.services.db.config import settings
 
 DATABASE_URL = URL.create(  # автоматически экранирует (URL-кодирует) все спецсимволы
     drivername="postgresql+psycopg",
@@ -21,3 +21,11 @@ SessionLocal = sessionmaker(
 # Базовый класс для моделей(таблиц)
 class Base(DeclarativeBase):
     pass
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
