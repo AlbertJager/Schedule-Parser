@@ -3,7 +3,7 @@ from src.app.services.db.models import Schedule
 from sqlalchemy import select
 from datetime import date as date_type, time as time_type
 
-def get_schedule_of_group(group_name: str, db):
+def add_schedule_of_group(group_name: str, db):
     '''Получает расписание группы с обработкой ошибок'''
     try:
         schedule_of_group = get_schedule(group_name)
@@ -45,3 +45,11 @@ def get_schedule_of_group(group_name: str, db):
                 db.add(schedule)
     db.commit()
     return schedule_of_group
+
+
+def get_schedule_from_db(group_name: str, db):
+    return db.scalars(
+        select(Schedule).where(
+            Schedule.group_name == group_name
+        )
+    ).all()

@@ -12,7 +12,10 @@ DATABASE_URL = URL.create(  # автоматически экранирует (U
     database=settings.DB_NAME
 )
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"connect_timeout": 5},  # если БД не отвечает
+)
 
 SessionLocal = sessionmaker(
     bind=engine,
