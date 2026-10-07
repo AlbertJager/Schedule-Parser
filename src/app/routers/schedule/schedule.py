@@ -28,11 +28,11 @@ def schedule_for_group(group_name: str, db: Session = Depends(get_db)):
 
 @router.post("/{group_name}", status_code=status.HTTP_201_CREATED)
 def add_schedule_for_group(group_name: str, db: Session = Depends(get_db)):
-    schedule = add_schedule_of_group(group_name, db)
-    if not schedule:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Группа не найдена",
-            )
+    result = add_schedule_of_group(group_name, db)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Группа не найдена",
+        )
     
-    return schedule
+    return result
