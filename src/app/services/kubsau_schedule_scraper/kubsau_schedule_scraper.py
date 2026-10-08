@@ -74,11 +74,12 @@ def extract_schedule_from_day(page_of_day: Tag) -> dict:
         else:
             discipline = discipline_tag.find(string=True).text.strip()
         
-        if not discipline:  # пропуск пустых занятий
-            continue
         
         entry = schedule_of_day["schedule"][number] = {}  # хранилище данных предмета    
         
+        if not discipline:  # пропуск пустых занятий, но запись в словарь будет в виде 'number: {}', где number - номер занятия
+            continue
+
         teacher = discipline_tag.find("span", class_="diss-info").text.strip()
         teacher = " | ".join([i.strip() for i in teacher.split("\r\n") if i.strip() and i.strip() != ","])
         
