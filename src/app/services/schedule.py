@@ -3,6 +3,7 @@ from src.app.services.db.models import Schedule
 from sqlalchemy import select
 from datetime import date as date_type, time as time_type
 
+
 def add_schedule_of_group(group_name: str, db) -> dict:
     '''Получает расписание группы с обработкой ошибок и записывает в БД'''
     try:
@@ -10,20 +11,23 @@ def add_schedule_of_group(group_name: str, db) -> dict:
     except ValueError:
         return None
     
-    entries_info = {"added": [], "updated": [], "deleted": []}
+    entries_info = {"added": [], "updated": [], "deleted": []}  # Для уведомления пользователя об изменениях
     
     for weeks in schedule_of_group: 
         for day, schedule_of_day in weeks["schedules"].items(): 
             for lesson_number, subject in schedule_of_day["schedule"].items():
-                lesson_number = int(lesson_number)
-                week_type = weeks["week"]
-                date = date_type.fromisoformat(day)  # преобразуем дату из строки в дату
+                data_for_entry = {}  # словарь из полей для записи в БД
+                
+                data_for_entry["lesson_number"] = int(lesson_number)
+                data_for_entry["week_type"] = weeks["week"]
+                data_for_entry["date"] = date_type.fromisoformat(day)  # преобразуем дату из строки в дату
+                data_for_entry["group_name"] = group_name
                 
                 existing_schedule: Schedule = db.scalar(
                 select(Schedule).where(
-                    Schedule.group_name == group_name,
-                    Schedule.date == date,
-                    Schedule.lesson_number == lesson_number,
+                    Schedule.group_name == data_for_entry["group_name"],
+                    Schedule.date == data_for_entry["date"],
+                    Schedule.lesson_number == data_for_entry["lesson_number"],
                 )
             )
                 if not subject:
@@ -32,37 +36,32 @@ def add_schedule_of_group(group_name: str, db) -> dict:
                         db.delete(existing_schedule)  # удаление записи о занятии из БД, если оно исчезло из сайта КубГАУ
                     continue
                             
-                start_time = time_type.fromisoformat(subject["time_start"])
-                end_time = time_type.fromisoformat(subject["time_end"])
-                discipline = subject["discipline"]
-                teacher = subject["teacher"]
-                classroom = subject["classroom"]
-                is_lection = subject["is_lection"]
+                data_for_entry["start_time"] = time_type.fromisoformat(subject["time_start"])
+                data_for_entry["end_time"] = time_type.fromisoformat(subject["time_end"])
+                data_for_entry["discipline"] = subject["discipline"]
+                data_for_entry["teacher"] = subject["teacher"]
+                data_for_entry["classroom"] = subject["classroom"]
+                data_for_entry["is_lection"] = subject["is_lection"]
                 
                 if existing_schedule:  # проверка на наличие записи по занятию
                     changes = (
-                        existing_schedule.classroom != classroom or
-                        existing_schedule.start_time != start_time or
-                        existing_schedule.end_time != end_time or
-                        existing_schedule.teacher != teacher or 
-                        existing_schedule.discipline != discipline or
-                        existing_schedule.week_type != week_type or
-                        existing_schedule.is_lection != is_lection
+                        existing_schedule.classroom != data_for_entry["classroom"] or
+                        existing_schedule.start_time != data_for_entry["start_time"] or
+                        existing_schedule.end_time != data_for_entry["end_time"] or
+                        existing_schedule.teacher != data_for_entry["teacher"] or 
+                        existing_schedule.discipline != data_for_entry["discipline"] or
+                        existing_schedule.is_lection != data_for_entry["is_lection"]
                     )
                     
                     if changes:  # проверка, изменилось ли что-то для существующей записи
-                        entry = add_entry(existing_schedule, classroom=classroom, discipline=discipline, teacher=teacher, 
-                        start_time=start_time, end_time=end_time, is_lection=is_lection, 
-                        lesson_number=lesson_number, week_type=week_type, date=date, update=True)
+                        entry = add_entry(existing_schedule, **data_for_entry, update=True)
 
                         entries_info["updated"].append(entry)
                     else:
                         continue
                 
                 else:  # добавление новой записи в БД
-                    entry = add_entry(existing_schedule, group_name=group_name, week_type=week_type, lesson_number=lesson_number, 
-                    classroom=classroom, teacher=teacher, start_time=start_time, discipline=discipline, 
-                    end_time=end_time, is_lection=is_lection, date=date)
+                    entry = add_entry(existing_schedule, **data_for_entry)
 
                     entries_info["added"].append(entry)
                 
@@ -79,8 +78,8 @@ def add_entry(entry: Schedule, update=False, **kwargs) -> Schedule | None:
         entry.date = kwargs["date"]
         entry.lesson_number = kwargs["lesson_number"]
         entry.group_name = kwargs["group_name"]
-
-    entry.week_type = kwargs["week_type"]
+        entry.week_type = kwargs["week_type"]
+    
     entry.start_time = kwargs["start_time"]
     entry.end_time = kwargs["end_time"]
     entry.discipline = kwargs["discipline"]
