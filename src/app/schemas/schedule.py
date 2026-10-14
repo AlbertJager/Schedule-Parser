@@ -1,5 +1,6 @@
 from datetime import date, time
 from uuid import UUID
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict
 
@@ -24,3 +25,10 @@ class ScheduleResponse(BaseModel):
     teacher: str
     classroom: str
     is_lection: bool
+
+
+class SchedulePeriod(str, Enum):
+    TODAY = "today"
+    TOMORROW = "tomorrow"
+    CURRENT_WEEK = "current_week"
+    NEXT_WEEK = "next_week"

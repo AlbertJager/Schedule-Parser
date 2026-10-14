@@ -1,10 +1,12 @@
 from src.app.services.kubsau_schedule_scraper import get_schedule
 from src.app.services.db.models import Schedule
+from src.app.schemas.schedule import SchedulePeriod
 from sqlalchemy import select
-from datetime import date as date_type, time as time_type
+from sqlalchemy.orm import Session
+from datetime import date as date_type, time as time_type, timedelta
 
 
-def add_schedule_of_group(group_name: str, db) -> dict:
+def add_schedule_of_group(group_name: str, db) -> dict[str, list[Schedule]] | None:
     '''Получает расписание группы с обработкой ошибок и записывает в БД'''
     try:
         schedule_of_group = get_schedule(group_name)
@@ -89,10 +91,33 @@ def add_entry(entry: Schedule, update=False, **kwargs) -> Schedule | None:
     return entry
 
 
-def get_schedule_from_db(group_name: str, db) -> list[Schedule]:
-    """Возвращает выборку расписания(на 2 недели) для группы"""
-    return db.scalars(
-        select(Schedule).where(
-            Schedule.group_name == group_name
+def get_schedule_from_db(group_name: str, db: Session, period: SchedulePeriod | None = None) -> list[Schedule]:
+    """Возвращает выборку расписания для группы"""
+    today = date_type.today()
+
+    query = select(Schedule).where(
+        Schedule.group_name == group_name
+    )
+
+    if period is not None:
+        if period == SchedulePeriod.TODAY:
+            date_from = today
+            date_to = today
+        elif period == SchedulePeriod.TOMORROW:
+            date_from = today + timedelta(days=1)
+            date_to = date_from
+        else:
+            date_from = today - timedelta(days=today.weekday())
+
+            if period == SchedulePeriod.NEXT_WEEK:
+                date_from += timedelta(days=7)
+
+            date_to = date_from + timedelta(days=6)
+
+        query = query.where(
+            Schedule.date.between(date_from, date_to)
         )
-    ).all()
+
+        query = query.where(Schedule.date.between(date_from, date_to))
+
+    return db.scalars(query).all()
