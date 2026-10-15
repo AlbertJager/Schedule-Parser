@@ -127,5 +127,5 @@ if __name__ == "__main__":
     '''Мои тесты'''
     group = input("Введите группу. Например: ИТ2304\n> ")
     schedule = get_schedule(group)
-    with open(f"schedule_{group}.json", "w", encoding="utf-8") as f:
+    with open(f"schedule_example.json", "w", encoding="utf-8") as f:
         json.dump(schedule, f, ensure_ascii=False, indent=4)

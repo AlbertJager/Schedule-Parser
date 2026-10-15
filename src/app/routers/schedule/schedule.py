@@ -32,14 +32,21 @@ def get_schedule_for_group(group_name: str, period: SchedulePeriod = SchedulePer
     return schedule
 
 
-@router.post("/{group_name}", response_model=ScheduleSyncResponse, status_code=status.HTTP_201_CREATED)
-def add_schedule_for_group(group_name: str, db: Session = Depends(get_db)):
+@router.post("/sync", response_model=ScheduleSyncResponse, status_code=status.HTTP_201_CREATED)
+def add_schedule_for_group(group_name: str, db: Session = Depends(get_db)) -> dict[str, list[Schedule]]:
     try:
         result = add_schedule_of_group(group_name, db)
+
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Группа не найдена",
+            )
+
+        return result
+
     except OperationalError:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="База данных недоступна")
-    
-    if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
-    
-    return result
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="База данных недоступна",
+        )

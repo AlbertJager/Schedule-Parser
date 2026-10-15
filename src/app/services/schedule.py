@@ -1,7 +1,7 @@
 from src.app.services.kubsau_schedule_scraper import get_schedule
 from src.app.services.db.models import Schedule
 from src.app.schemas.schedule import SchedulePeriod
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 from datetime import date as date_type, time as time_type, timedelta
 
@@ -15,6 +15,23 @@ def add_schedule_of_group(group_name: str, db) -> dict[str, list[Schedule]] | No
     
     entries_info = {"added": [], "updated": [], "deleted": []}  # Для уведомления пользователя об изменениях
     
+    today = date_type.today()
+
+    if today.weekday() == 0:  # понедельник
+        previous_monday = today - timedelta(days=7)
+        previous_sunday = today - timedelta(days=1)
+
+        old_entries = db.scalars(
+            select(Schedule).where(
+                Schedule.group_name == group_name,
+                Schedule.date.between(previous_monday, previous_sunday),
+            )
+        ).all()
+
+        for entry in old_entries:
+            entries_info["deleted"].append(entry)
+            db.delete(entry)
+            
     for weeks in schedule_of_group: 
         for day, schedule_of_day in weeks["schedules"].items(): 
             for lesson_number, subject in schedule_of_day["schedule"].items():
